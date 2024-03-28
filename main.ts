@@ -1,12 +1,15 @@
 import {
 	App,
+	Component,
 	Editor,
+	MarkdownRenderer,
 	MarkdownView,
 	Modal,
 	Notice,
 	Plugin,
 	PluginSettingTab,
 	Setting,
+	TFile,
 } from "obsidian";
 
 // Remember to rename these classes and interfaces!
@@ -81,19 +84,41 @@ class SampleModal extends Modal {
 		// get all files containing the string "q-type: article"
 		const files = this.app.vault.getMarkdownFiles();
 
+		const articlesPromise = Promise.all(
+			files.map((file) =>
+				this.app.vault.read(file).then((content: any) => {
+					return {
+						file,
+						isArticle: content.includes("q-type: article"),
+					};
+				})
+			)
+		);
 
-		const articlesPromise = Promise.all(files.map(file =>
-			this.app.vault.read(file).then((content: any) => {
-				return { file, isArticle: content.includes("q-type: article") };
-			})
-		));
-		
-		articlesPromise.then(articles => {
-			const filteredArticles = articles.filter(article => article.isArticle);
+		articlesPromise.then((articles) => {
+			const filteredArticles = articles.filter(
+				(article) => article.isArticle
+			);
 			console.log(`Found ${filteredArticles.length} articles`);
 
+			for (const file of filteredArticles) {
+				this.renderNote(contentEl, file.file);
+			}
 		});
+	}
 
+	renderNote(container: any, note: TFile) {
+		const noteEl = container.createEl("div", "note");
+
+		this.app.vault.read(note).then((content: any) => {
+			MarkdownRenderer.render(
+				this.app,
+				content,
+				container,
+				note.path,
+				container
+			);
+		});
 	}
 
 	onClose() {
